@@ -1,20 +1,26 @@
 import numpy as np
-from dataclasses import dataclass
+from pydantic import BaseModel
+from typing import Optional
 
 # --- Material (atributos visuales) ---
-@dataclass
-class Material:
+class Material(BaseModel):
     fill_color: tuple[float, float, float, float] = (1.0, 1.0, 1.0, 1.0)
     stroke_color: tuple[float, float, float, float] = (0.0, 0.0, 0.0, 1.0)
-    stroke_width: float = 1.0
+    stroke_width: Optional[float] = 1.0
+
+class RenderProperties(BaseModel):
+    vertex_shader_path: str
+    fragment_shader_path: str
+    gl_mode: Optional[int] = None
+    uniforms: list[dict] = []
 
 
 # --- Polyline: base geométrica ---
 class Polyline:
-    def __init__(self, vertices: np.ndarray, gl_mode: int, material: Material | None = None):
+    def __init__(self, vertices: np.ndarray, material: Material, render_properties: RenderProperties):
         self.vertices = np.array(vertices, dtype=np.float32)
         self.material = material or Material()
-        self.gl_mode = gl_mode
+        self.render_properties = render_properties
 
     @property
     def flat_vertices(self) -> np.ndarray:
@@ -29,8 +35,8 @@ class Polyline:
 
 # --- Mesh: agrega topología ---
 class Mesh(Polyline):
-    def __init__(self, vertices: np.ndarray, gl_mode: int, indices: np.ndarray, material: Material | None = None):
-        super().__init__(vertices, gl_mode, material)
+    def __init__(self, vertices: np.ndarray, indices: np.ndarray, material: Material, render_properties: RenderProperties):
+        super().__init__(vertices, material, render_properties)
         self.indices = np.array(indices, dtype=np.int32)
 
     @property
@@ -46,19 +52,3 @@ class Mesh(Polyline):
     def index_buffer(self) -> bytes:
         """Bytes de índices listos para buffer."""
         return self.flat_indices.tobytes()
-
-
-# --- Figura derivada: Círculo ---
-class CircleMesh(Mesh):
-    def __init__(self, radius=1.0, segments=64, gl_mode=4, material: Material | None = None):
-        # Calcular vértices
-        angles = np.linspace(0, 2 * np.pi, segments, endpoint=False)
-        vertices = np.stack([np.cos(angles) * radius, np.sin(angles) * radius], axis=1)
-        vertices = np.vstack([[0.0, 0.0], vertices])  # centro + borde
-        # Conectividad (triángulos en abanico)
-        indices = []
-        for i in range(1, segments):
-            indices.extend([0, i, i + 1])
-        indices.extend([0, segments, 1])  # cerrar círculo
-
-        super().__init__(vertices, gl_mode, np.array(indices), material)

@@ -1,0 +1,136 @@
+# PyXION Design Tokens v0.1
+# Tipo: TOML (recomendado para motores nativos y tooling multiplataforma)
+# Uso típico:
+#  - Python: tomllib / tomlkit -> dict de tokens
+#  - Shaders: generar includes .glsl con estos valores
+#  - Tooling: scripts que deriven paletas/LUTs desde estos tokens
+
+[meta]
+name        = "PyXION"
+version     = "0.1.0"
+description = "Physics-driven Medical Imaging design tokens"
+license     = "Apache-2.0"
+brand_mode  = "dark"
+
+# ------------------------------------------------------------
+# PALETA BASE (espacio, púrpuras, contraste cálido)
+# ------------------------------------------------------------
+[color.palette]
+violet_core   = "#6C40FF"  # primario (plasma violeta)
+magenta_neuro = "#C85CFF"  # secundario (neural magenta)
+space_indigo  = "#1E1633"  # fondo profundo
+lilac_haze    = "#BFA9FF"  # acentos suaves / tipografía secundaria
+solar_amber   = "#FFB871"  # contraste cálido (eventos/actividad)
+white         = "#FFFFFF"
+black         = "#000000"
+
+# Neutrales (modo oscuro)
+neutral_900 = "#0D0B14"
+neutral_800 = "#141021"
+neutral_700 = "#1C1830"
+neutral_600 = "#262243"
+neutral_500 = "#342F59"
+neutral_400 = "#4C4680"
+neutral_300 = "#6F6AA3"
+neutral_200 = "#9A95C8"
+neutral_100 = "#C9C6E6"
+neutral_050 = "#E7E6F5"
+
+# ------------------------------------------------------------
+# ROLES DE COLOR (UI/Brand)
+# ------------------------------------------------------------
+[color.roles]
+brand_primary   = "violet_core"
+brand_secondary = "magenta_neuro"
+brand_accent    = "solar_amber"
+
+bg_base   = "space_indigo"
+bg_elev_1 = "neutral_800"
+bg_elev_2 = "neutral_700"
+
+text_primary   = "white"
+text_secondary = "lilac_haze"
+text_muted     = "neutral_300"
+
+stroke_soft  = "neutral_500"
+stroke_faint = "neutral_700"
+
+state_info    = "violet_core"
+state_success = "#38D39F"
+state_warn    = "solar_amber"
+state_error   = "#FF5C7A"
+
+# ------------------------------------------------------------
+# GRADIENTES (para headers, hero, énfasis)
+# ------------------------------------------------------------
+[gradients]
+primary = ["#6C40FF", "#C85CFF", "#FFB871"]        # 135deg recomendado
+neural  = ["#1E1633", "#6C40FF", "#C85CFF"]
+
+# ------------------------------------------------------------
+# TIPOGRAFÍA (sugerencias; carga en tu engine SDF/MSDF)
+# ------------------------------------------------------------
+[typography]
+font_sans_name   = "Outfit"
+font_mono_name   = "JetBrains Mono"
+scale_ratio      = 1.20
+# Tamaños (px) – ajusta a tu DPI interno
+display = 44
+h1      = 32
+h2      = 24
+h3      = 20
+body    = 16
+small   = 13
+mono    = 14
+
+# ------------------------------------------------------------
+# ESPACIADO / RADIOS / SOMBRAS / TIMING
+# ------------------------------------------------------------
+[spacing]
+xs = 4
+sm = 8
+md = 12
+lg = 16
+xl = 24
+xxl = 32
+
+[radius]
+xs = 6
+sm = 10
+md = 14
+lg = 18
+
+[shadow]   # intensidades (para tu pass de blur o PCF)
+elev_1 = { spread = 8,  opacity = 0.18 }
+elev_2 = { spread = 16, opacity = 0.22 }
+elev_3 = { spread = 28, opacity = 0.28 }
+
+[timing]
+fast   = 0.10  # s
+normal = 0.20
+slow   = 0.35
+
+# ------------------------------------------------------------
+# TOKENS DE IMAGEN MÉDICA (LUTs básicos)
+# ------------------------------------------------------------
+[imaging.lut.gray]
+# mapeo 0..1 -> RGB hex (clave = posición)
+"0.0" = "#000000"
+"1.0" = "#FFFFFF"
+
+[imaging.lut.magma]  # ejemplo breve; expande vía tooling
+"0.0" = "#000004"
+"0.5" = "#B53679"
+"1.0" = "#FCFDBF"
+
+[imaging.overlays]
+mask_alpha_default = 0.35
+colormap_default   = "gray"
+
+# ------------------------------------------------------------
+# EXPORTS (nombres archivo para generar includes)
+# ------------------------------------------------------------
+[exports]
+python_constants = "build/theme.py"
+glsl_include     = "build/colors.glslinc"
+svg_logo_path    = "branding/logo.svg"

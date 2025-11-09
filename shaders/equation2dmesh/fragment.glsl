@@ -1,10 +1,9 @@
 #version 330 core
 
 // Fragment shader with uniform color and a subtle animation
-in vec2 v_uv;
+in vec3 v_uv;
 out vec4 fragColor;
-uniform vec4 color;
 
 void main() {
-    fragColor = vec4(color.rgb, color.a);
+    fragColor = vec4(1.0, 1.0, 1.0, 1.0);
 }

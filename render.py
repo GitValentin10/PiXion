@@ -11,7 +11,6 @@ class ShaderWrapper:
     Envoltura simple para compilar y almacenar un shader program de ModernGL.
     Carga archivos .vert y .frag desde disco y crea el programa al instanciar.
     """
-    program: moderngl.Program
     def __init__(self, ctx: moderngl.Context, vertex_path: str, fragment_path: str):
         self.ctx = ctx
         self.vertex_path = Path(vertex_path)
@@ -24,8 +23,6 @@ class ShaderWrapper:
 
         vertex_src = self.vertex_path.read_text(encoding="utf-8")
         fragment_src = self.fragment_path.read_text(encoding="utf-8")
-
-        # Compilar inmediatamente
         self.program = self.ctx.program(
             vertex_shader=vertex_src,
             fragment_shader=fragment_src
@@ -40,26 +37,32 @@ class Renderer:
     def __init__(
         self,
         wnd_size: Tuple[int, int],
-        meshes: list[Mesh] = [],
+        models: list[Mesh] = [],
         background_color: tuple[float, float, float, float] = (0.0, 0.0, 0.0, 1.0),
-        shader: ShaderWrapper | None = None,
         ctx: Optional[moderngl.Context] = None,
         camera: Optional[Camera] = None,
     ) -> None:
         self.vaos = []
         self.background_color = tuple(background_color)
-        self.meshes = meshes
-        self.shader = shader
+        self.models = models
         self.ctx = ctx
         self.wnd_size = wnd_size
         self.camera = camera
-        self.vbos = [ctx.buffer(m.vertex_buffer) for m in self.meshes]
-        self.ibos = [ctx.buffer(m.index_buffer) for m in self.meshes]
-        for vbo, ibo in zip(self.vbos, self.ibos):
+        self.vbos = [ctx.buffer(m.vertex_buffer) for m in self.models]
+        self.ibos = [ctx.buffer(m.index_buffer) for m in self.models]
+        self.shaders = []
+        for m in self.models:
+            self.shaders.append(ShaderWrapper(ctx,
+                                              m.render_properties.vertex_shader_path,
+                                               m.render_properties.fragment_shader_path
+                                               ))
+        for vbo, ibo, shader, uniforms in zip(self.vbos, self.ibos, self.shaders, self.models):
+            for uniform in uniforms.render_properties.uniforms:
+                shader.program[uniform['name']].value = uniform['value']
             self.vaos.append(
                 ctx.vertex_array(
-                    self.shader.program,
-                    [(vbo, '2f', 'in_pos')],
+                    shader.program,
+                    [(vbo, '3f', 'in_pos')],
                     ibo
                 )
             )
@@ -70,13 +73,12 @@ class Renderer:
         self.ctx.viewport = (0, 0, width, height)
         self.ctx.enable(moderngl.DEPTH_TEST)
         self.ctx.clear(*self.background_color, depth=1.0)
-
         # Enviar matriz de proyección al shader
-        self.shader.program['projection'].write(self.camera.camera_matrix.T.tobytes())
-        self.shader.program['color'].write(np.array([1.0, 1.0, 1.0, 1.0], dtype='f4').tobytes())
 
         for i, vao in enumerate(self.vaos):
-            mesh = self.meshes[i]
-            vao.render(mode=moderngl.TRIANGLES)
+            model = self.models[i]
+            self.shaders[i].program['camera_matrix'].write(self.camera.camera_matrix.astype('f4').T.tobytes())
+
+            vao.render(mode=model.render_properties.gl_mode)
 
 

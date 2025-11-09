@@ -3,6 +3,8 @@ from typing import Tuple
 from utils import to_tuple, load_config
 import moderngl_window as mglw
 from render import Renderer
+import numpy as np
+
 
 
 Color = Tuple[float, float, float, float]
@@ -26,3 +28,10 @@ class OpenWindow(mglw.WindowConfig):
     def on_render(self, time, frame_time) -> None:
 
         self.renderer.render()
+    
+    def on_mouse_scroll_event(self, x_offset, y_offset):
+        self.renderer.camera.camera_radius *= (1 + y_offset)
+    
+    def on_mouse_drag_event(self, x, y, dx, dy):
+        self.renderer.camera.camera_azimuthal -= np.radians(dx * 0.5)
+        self.renderer.camera.camera_polar -= np.radians(dy * 0.5)
