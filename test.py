@@ -17,9 +17,11 @@ if __name__ == "__main__":
     )
 
     def equation_func(x, y):
+        # Superficie de referencia para probar Equation3dMesh.
         return np.exp((x**2 + y**2))
 
     def equation_func_2d(x):
+        # Curva simple para la prueba 2D.
         return x**2
 
     window = mglw.create_window_config_instance(OpenWindow)

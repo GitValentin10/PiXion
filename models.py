@@ -1,28 +1,54 @@
 from geometry import Mesh, Material, RenderProperties
 import numpy as np
 import moderngl
+import logging
 
+
+logger = logging.getLogger(__name__)
+
+# Superficie parametrizada que evalúa una ecuación z=f(x,y).
 class Equation3dMesh(Mesh):
     def __init__(self, material: Material, equation_func: callable, rows: int, cols: int):
-        self.vertices = self.generate_vertices(equation_func, rows, cols)
+        # Discretiza la ecuación y construye buffers y shaders apropiados.
+        self.vertices, z_meta = self.generate_vertices(equation_func, rows, cols)
         self.indices = self.generate_indices(rows, cols)
         self.render_properties = RenderProperties(
             vertex_shader_path="shaders/equation3dmesh/vertex.glsl",
             fragment_shader_path="shaders/equation3dmesh/fragment.glsl",
-            gl_mode=moderngl.TRIANGLES
-            )
+            gl_mode=moderngl.TRIANGLES,
+            uniforms=[
+                {"name": "z_min", "value": z_meta["z_min"]},
+                {"name": "z_max", "value": z_meta["z_max"]},
+                {"name": "z_span", "value": z_meta["z_span"]},
+            ],
+        )
         super().__init__(self.vertices, self.indices, material, self.render_properties)
 
     def generate_vertices(self, equation_func: callable, rows: int, cols: int):
+        # Evalúa la función en una malla regular para obtener (x,y,z).
         x = np.linspace(-1, 1, cols)
         y = np.linspace(-1, 1, rows)
         X, Y = np.meshgrid(x, y)
-        Z = equation_func(X, Y)
-        vertices = np.column_stack((X.flatten(), Y.flatten(), Z.flatten())).astype('f4')
-        print(max(vertices[:,2]), min(vertices[:,2]))
-        return vertices
+        Z = equation_func(X, Y).astype(np.float32)
+        z_min = float(np.min(Z))
+        z_max = float(np.max(Z))
+        z_span = z_max - z_min
+        if z_span == 0.0:
+            normalized_z = np.zeros_like(Z, dtype=np.float32)
+        else:
+            z_center = (z_min + z_max) / 2.0
+            normalized_z = ((Z - z_center) / (z_span / 2.0)).astype(np.float32)
+        logger.debug(
+            "Equation3dMesh: rango Z normalizado (min=%s, max=%s, span=%s)",
+            z_min,
+            z_max,
+            z_span,
+        )
+        vertices = np.column_stack((X.flatten(), Y.flatten(), normalized_z.flatten())).astype('f4')
+        return vertices, {"z_min": z_min, "z_max": z_max, "z_span": z_span if z_span != 0.0 else 1.0}
     
     def generate_indices(self, rows: int, cols: int):
+        # Construye dos triángulos por celda de la malla regular.
         indices = np.arange(rows * cols, dtype='i4').reshape((rows, cols))
         t1 = indices[:-1, :-1].ravel()
         quad_index = np.column_stack((
@@ -35,8 +61,10 @@ class Equation3dMesh(Mesh):
         )).ravel()
         return quad_index
 
+# Malla rectangular simple con esquinas redondeadas controladas en shader.
 class RoundedRectangle(Mesh):
     def __init__(self, material: Material, width: float, height: float, radius: float):
+        # Define cuatro vértices y uniforms necesarios para el shader.
         self.vertices = self.generate_vertices(width, height)
         self.indices = self.generate_indices()
         self.render_properties = RenderProperties(
@@ -62,6 +90,7 @@ class RoundedRectangle(Mesh):
         super().__init__(self.vertices, self.indices, material, self.render_properties)
     
     def generate_vertices(self, width: float, height: float):
+        # Devuelve el rectángulo centrado en origen.
         v1 = np.array([-(width/2), -(height/2), 0.0], dtype='f4')
         v2 = np.array([ (width/2), -(height/2), 0.0], dtype='f4')
         v3 = np.array([ (width/2),  (height/2), 0.0], dtype='f4')
@@ -69,11 +98,14 @@ class RoundedRectangle(Mesh):
         return np.array([v1, v2, v3, v4], dtype='f4')
 
     def generate_indices(self):
+        # Usa dos triángulos para cubrir el rectángulo.
         return np.array([0, 1, 2, 2, 3, 0], dtype='i4')
 
 
+# Cinta 2D extruida a partir de una función y=f(x).
 class Equation2dMesh(Mesh):
     def __init__(self, material, equation_func, segments: int):
+        # Genera segmentos a lo largo de la curva y arma un TRIANGLE_STRIP.
         self.vertices = self.generate_vertices(equation_func, segments)
         self.indices = np.arange(len(self.vertices), dtype='i4')
         self.render_properties = RenderProperties(
@@ -84,6 +116,7 @@ class Equation2dMesh(Mesh):
         super().__init__(self.vertices, self.indices, material, self.render_properties)
 
     def generate_vertices(self, equation_func, segments: int):
+        # Calcula normales laterales para dar grosor a la curva plot.
         x = np.linspace(-1, 1, segments+1)
         y = equation_func(x)
         z = np.zeros_like(x)

@@ -6,12 +6,14 @@ from typing import Tuple, Optional
 from pathlib import Path
 
 
+# Pequeño helper para compilar y manejar pares de shaders.
 class ShaderWrapper:
     """
     Envoltura simple para compilar y almacenar un shader program de ModernGL.
     Carga archivos .vert y .frag desde disco y crea el programa al instanciar.
     """
     def __init__(self, ctx: moderngl.Context, vertex_path: str, fragment_path: str):
+        # Lee ambos archivos del disco y crea el programa asociado.
         self.ctx = ctx
         self.vertex_path = Path(vertex_path)
         self.fragment_path = Path(fragment_path)
@@ -29,46 +31,70 @@ class ShaderWrapper:
         )
 
 
+# Coordina ModernGL para dibujar las mallas registradas.
 class Renderer:
     """Manage a ModernGL pipeline to draw multiple 2D elements."""
     vbos: Optional[list[moderngl.Buffer]]
     ibos: Optional[list[moderngl.Buffer]]
     vaos: Optional[list[moderngl.VertexArray]]
+
     def __init__(
         self,
         wnd_size: Tuple[int, int],
-        models: list[Mesh] = [],
+        models: Optional[list[Mesh]] = None,
         background_color: tuple[float, float, float, float] = (0.0, 0.0, 0.0, 1.0),
         ctx: Optional[moderngl.Context] = None,
         camera: Optional[Camera] = None,
     ) -> None:
-        self.vaos = []
+        # Prepara buffers, shaders y VAOs correspondientes a cada mesh recibido.
         self.background_color = tuple(background_color)
-        self.models = models
-        self.ctx = ctx
+        self.models = list(models) if models else []
         self.wnd_size = wnd_size
-        self.camera = camera
-        self.vbos = [ctx.buffer(m.vertex_buffer) for m in self.models]
-        self.ibos = [ctx.buffer(m.index_buffer) for m in self.models]
-        self.shaders = []
-        for m in self.models:
-            self.shaders.append(ShaderWrapper(ctx,
-                                              m.render_properties.vertex_shader_path,
-                                               m.render_properties.fragment_shader_path
-                                               ))
-        for vbo, ibo, shader, uniforms in zip(self.vbos, self.ibos, self.shaders, self.models):
-            for uniform in uniforms.render_properties.uniforms:
-                shader.program[uniform['name']].value = uniform['value']
-            self.vaos.append(
-                ctx.vertex_array(
-                    shader.program,
-                    [(vbo, '3f', 'in_pos')],
-                    ibo
-                )
+        self.ctx = ctx or moderngl.create_standalone_context()
+        aspect_ratio = (wnd_size[0] / wnd_size[1]) if wnd_size[1] else 1.0
+        if camera is None:
+            default_projection = np.eye(4, dtype=np.float32)
+            self.camera = Camera(
+                position=np.array([0.0, 0.0, 1.0], dtype=np.float32),
+                target=np.array([0.0, 0.0, 0.0], dtype=np.float32),
+                theta=0.0,
+                aspect_ratio=aspect_ratio,
+                projection_matrix=default_projection,
             )
+        else:
+            self.camera = camera
+
+        self.vbos: list[moderngl.Buffer] = []
+        self.ibos: list[moderngl.Buffer] = []
+        self.shaders: list[ShaderWrapper] = []
+        self.vaos = []
+
+        for mesh in self.models:
+            vbo = self.ctx.buffer(mesh.vertex_buffer)
+            ibo = self.ctx.buffer(mesh.index_buffer)
+            shader = ShaderWrapper(
+                self.ctx,
+                mesh.render_properties.vertex_shader_path,
+                mesh.render_properties.fragment_shader_path,
+            )
+
+            for uniform in mesh.render_properties.uniforms:
+                shader.program[uniform['name']].value = uniform['value']
+
+            vao = self.ctx.vertex_array(
+                shader.program,
+                [(vbo, '3f', 'in_pos')],
+                ibo,
+            )
+
+            self.vbos.append(vbo)
+            self.ibos.append(ibo)
+            self.shaders.append(shader)
+            self.vaos.append(vao)
 
     
     def render(self) -> None:
+        # Configura el viewport, limpia y emite draw calls para cada VAO.
         width, height = self.wnd_size
         self.ctx.viewport = (0, 0, width, height)
         self.ctx.enable(moderngl.DEPTH_TEST)

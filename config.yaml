@@ -1,6 +1,0 @@
-main_window:
-  gl_version: [3, 3]
-  title: "Prueba de Renderer 2D"
-  window_size: [960, 540]
-  aspect_ratio: 1.7777777777777777
-  resizable: false
