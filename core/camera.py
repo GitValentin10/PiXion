@@ -1,5 +1,5 @@
 import numpy as np
-from utils import normalize
+from ..utils.math import normalize
 
 
 # Cámara orbital con sistema Z-up y matrices compatibles con OpenGL.

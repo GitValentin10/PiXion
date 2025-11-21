@@ -1,14 +1,20 @@
 from pathlib import Path
 from typing import Tuple
-from utils import to_tuple, load_config
 import moderngl_window as mglw
-from render import Renderer
 import numpy as np
-
-
+from ..rendering.renderer import Renderer
+from ..utils.math import to_tuple
+from .config import load_config
 
 Color = Tuple[float, float, float, float]
-CONFIG_PATH = Path(__file__).with_name("config.toml")
+# Assuming config.toml is at the root or we need to find it relative to this file?
+# The original code looked for config.toml next to app.py.
+# Now app.py is moved to pyxion/app/window.py.
+# We should probably look for config.toml in the project root.
+# Let's assume project root is 2 levels up from here.
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+CONFIG_PATH = PROJECT_ROOT / "config.toml"
+
 _CONFIG = load_config(CONFIG_PATH)
 _WINDOW_SETTINGS = _CONFIG.get("main_window", {})
 
@@ -29,13 +35,16 @@ class OpenWindow(mglw.WindowConfig):
 
     def on_render(self, time, frame_time) -> None:
         # Ciclo de dibujo: delega en el renderer asociado.
-        self.renderer.render()
+        if hasattr(self, 'renderer'):
+            self.renderer.render()
     
     def on_mouse_scroll_event(self, x_offset, y_offset):
         # Ajusta el radio orbital para acercar o alejar la cámara.
-        self.renderer.camera.camera_radius *= (1 + y_offset)
+        if hasattr(self, 'renderer'):
+            self.renderer.camera.camera_radius *= (1 + y_offset)
     
     def on_mouse_drag_event(self, x, y, dx, dy):
         # Traducir arrastre a cambios en ángulos azimutal y polar.
-        self.renderer.camera.camera_azimuthal -= np.radians(dx * 0.5)
-        self.renderer.camera.camera_polar -= np.radians(dy * 0.5)
+        if hasattr(self, 'renderer'):
+            self.renderer.camera.camera_azimuthal -= np.radians(dx * 0.5)
+            self.renderer.camera.camera_polar -= np.radians(dy * 0.5)

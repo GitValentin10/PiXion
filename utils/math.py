@@ -1,6 +1,4 @@
-from pathlib import Path
 import numpy as np
-import tomllib
 
 def normalize(v):
     # Retorna un vector unitario manteniendo la dirección original.
@@ -44,11 +42,3 @@ def to_tuple(value, fallback):
     if isinstance(value, (list, tuple)):
         return tuple(value)
     return tuple(fallback)
-
-def load_config(path: Path) -> dict:
-    # Lee archivos TOML defensivamente devolviendo dict vacío si no existe.
-    if not path.exists():
-        return {}
-    with path.open("rb") as fh:
-        return tomllib.load(fh)
-
